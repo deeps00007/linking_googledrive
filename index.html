@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload & Fetch Images from Google Drive</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+        #imageGallery img {
+            width: 150px;
+            margin: 10px;
+            border-radius: 8px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body>
+
+    <h2>Upload Image to Google Drive</h2>
+    <input type="file" id="fileInput" accept="image/*">
+    <button onclick="uploadFile()">Upload</button>
+    <p id="status"></p>
+
+    <h2>Uploaded Images:</h2>
+    <div id="imageGallery"></div>
+    <img src="https://images.pexels.com/photos/674010/pexels-photo-674010.jpeg?cs=srgb&dl=pexels-anjana-c-169994-674010.jpg&fm=jpg" alt="Uploaded Image" style="width: 150px; margin: 10px;">
+    <!-- <img src="https://images.pexels.com/photos/674010/pexels-photo-674010.jpeg?cs=srgb&amp;dl=pexels-anjana-c-169994-674010.jpg&amp;fm=jpg" alt="Uploaded Image" style="width: 150px; margin: 10px;"> -->
+    <img src="https://drive.google.com/uc?export=view&id=1YfV7PNV-97p_Wc-E9tr0yQl9w2wEIVwb" alt="Uploaded Image" style="width: 150px; margin: 10px;">
+    <script>
+        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwPSdE2PJi3xKDJVIUniXWsS0KGihRaBTBRObg-C4hYfpCUXinXq2uLG9C_x9p5qoZf/exec"; // 🔹 Replace with your Google Apps Script Web App URL
+
+        async function uploadFile() {
+            const fileInput = document.getElementById("fileInput").files[0];
+            if (!fileInput) {
+                alert("Select a file first!");
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.readAsDataURL(fileInput);
+            reader.onloadend = async function () {
+                const base64String = reader.result.split(",")[1];
+                
+                const response = await fetch(WEB_APP_URL, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                    body: new URLSearchParams({
+                        image: base64String,
+                        fileName: fileInput.name,
+                        mimeType: fileInput.type
+                    })
+                });
+
+                const data = await response.json();
+                if (data.error) {
+                    alert("Error: " + data.error);
+                    return;
+                }
+
+                fetchImages(); // Refresh images after upload
+            };
+        }
+
+        async function fetchImages() {
+            const response = await fetch(WEB_APP_URL);
+            const data = await response.json();
+            if (data.error) {
+                console.error("Error fetching images:", data.error);
+                return;
+            }
+
+            const imageContainer = document.getElementById("imageGallery");
+            imageContainer.innerHTML = "";
+
+            data.images.forEach(url => {
+                const img = document.createElement("img");
+                img.src = url;
+                img.alt = "Uploaded Image";
+                img.style.width = "150px";
+                img.style.margin = "10px";
+                imageContainer.appendChild(img);
+            });
+        }
+
+        window.onload = fetchImages;
+    </script>
+
+</body>
+</html>
