@@ -26,67 +26,115 @@
 
     <h2>Uploaded Images:</h2>
     <div id="imageGallery"></div>
-    <img src="https://images.pexels.com/photos/674010/pexels-photo-674010.jpeg?cs=srgb&dl=pexels-anjana-c-169994-674010.jpg&fm=jpg" alt="Uploaded Image" style="width: 150px; margin: 10px;">
+    <!-- <img src="https://images.pexels.com/photos/674010/pexels-photo-674010.jpeg?cs=srgb&dl=pexels-anjana-c-169994-674010.jpg&fm=jpg" alt="Uploaded Image" style="width: 150px; margin: 10px;"> -->
     <!-- <img src="https://images.pexels.com/photos/674010/pexels-photo-674010.jpeg?cs=srgb&amp;dl=pexels-anjana-c-169994-674010.jpg&amp;fm=jpg" alt="Uploaded Image" style="width: 150px; margin: 10px;"> -->
-    <img src="https://drive.google.com/uc?export=view&id=1YfV7PNV-97p_Wc-E9tr0yQl9w2wEIVwb" alt="Uploaded Image" style="width: 150px; margin: 10px;">
+    <!-- <img src="https://lh3.googleusercontent.com/d/1YfV7PNV-97p_Wc-E9tr0yQl9w2wEIVwb" alt="Uploaded Image"> -->
+<!-- <img src="https://drive.google.com/uc?export=view&amp;id=12Ru2eP_tNNiq8yjznXCt6v3eD8wrxcgY" alt="Uploaded Image" style="width: 150px; margin: 10px;"> -->
     <script>
         const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwPSdE2PJi3xKDJVIUniXWsS0KGihRaBTBRObg-C4hYfpCUXinXq2uLG9C_x9p5qoZf/exec"; // 🔹 Replace with your Google Apps Script Web App URL
 
         async function uploadFile() {
-            const fileInput = document.getElementById("fileInput").files[0];
-            if (!fileInput) {
-                alert("Select a file first!");
-                return;
-            }
+    const fileInput = document.getElementById("fileInput").files[0];
+    const statusElement = document.getElementById("status");
 
-            const reader = new FileReader();
-            reader.readAsDataURL(fileInput);
-            reader.onloadend = async function () {
-                const base64String = reader.result.split(",")[1];
-                
-                const response = await fetch(WEB_APP_URL, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-                    body: new URLSearchParams({
-                        image: base64String,
-                        fileName: fileInput.name,
-                        mimeType: fileInput.type
-                    })
-                });
+    if (!fileInput) {
+        alert("Select a file first!");
+        return;
+    }
 
-                const data = await response.json();
-                if (data.error) {
-                    alert("Error: " + data.error);
-                    return;
-                }
+    try {
+        statusElement.textContent = "Uploading...";
 
-                fetchImages(); // Refresh images after upload
-            };
-        }
+        // Convert file to Base64
+        const reader = new FileReader();
+        reader.readAsDataURL(fileInput);
+        
+        reader.onloadend = async function () {
+            const base64String = reader.result.split(",")[1];
 
-        async function fetchImages() {
-            const response = await fetch(WEB_APP_URL);
-            const data = await response.json();
-            if (data.error) {
-                console.error("Error fetching images:", data.error);
-                return;
-            }
-
-            const imageContainer = document.getElementById("imageGallery");
-            imageContainer.innerHTML = "";
-
-            data.images.forEach(url => {
-                const img = document.createElement("img");
-                img.src = url;
-                img.alt = "Uploaded Image";
-                img.style.width = "150px";
-                img.style.margin = "10px";
-                imageContainer.appendChild(img);
+            // Send file data to Google Apps Script
+            const response = await fetch(WEB_APP_URL, {
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body: new URLSearchParams({
+                    image: base64String,
+                    fileName: fileInput.name,
+                    mimeType: fileInput.type
+                })
             });
-        }
+
+            const data = await response.json();
+
+            if (data.error) {
+                alert("Upload failed: " + data.error);
+                statusElement.textContent = "Upload failed!";
+            } else {
+                alert("Upload successful!");
+                statusElement.textContent = "";
+                fetchImages(); // Refresh images after upload
+            }
+        };
+    } catch (error) {
+        console.error("Error uploading file:", error);
+        alert("Upload failed!");
+        statusElement.textContent = "Upload failed!";
+    }
+}
+        async function fetchImages() {
+    const response = await fetch(WEB_APP_URL);
+    const data = await response.json();
+    
+    if (data.error) {
+        console.error("Error fetching images:", data.error);
+        return;
+    }
+
+    const imageContainer = document.getElementById("imageGallery");
+    imageContainer.innerHTML = "";
+
+    data.images.forEach(url => {
+        let convertedUrl = convertDriveURL(url);
+
+        const img = document.createElement("img");
+        img.src = convertedUrl;
+        img.alt = "Uploaded Image";
+        img.style.width = "150px";
+        img.style.height = "150px";
+        img.style.margin = "10px";
+        imageContainer.appendChild(img);
+    });
+}
+
+// Function to convert Google Drive URL to a direct displayable URL
+function convertDriveURL(driveURL) {
+    const driveUrlPattern = /https:\/\/drive\.google\.com\/uc\?export=view&id=(.*)/;
+    const match = driveURL.match(driveUrlPattern);
+    
+    if (match) {
+        return `https://lh3.googleusercontent.com/d/${match[1]}`;
+    }
+
+    return driveURL; // Return original URL if it doesn't match the expected format
+}
+
+// Fetch images when the page loads
+document.addEventListener("DOMContentLoaded", fetchImages);
+
+        
 
         window.onload = fetchImages;
     </script>
+    <!-- <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            document.querySelectorAll("img").forEach((img) => {
+                const driveUrlPattern = /https:\/\/drive\.google\.com\/uc\?export=view&id=(.*)/;
+                const match = img.src.match(driveUrlPattern);
+                if (match) {
+                    img.src = `https://lh3.googleusercontent.com/d/${match[1]}`;
+                }
+            });
+        });
+    </script> -->
 
 </body>
 </html>
