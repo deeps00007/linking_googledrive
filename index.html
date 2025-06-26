@@ -1,65 +1,80 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Upload & Fetch Images from Google Drive</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            text-align: center;
-        }
-        #imageGallery img {
-            width: 150px;
-            margin: 10px;
-            border-radius: 8px;
-            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
-        }
+      body {
+        font-family: Arial, sans-serif;
+        text-align: center;
+      }
+      #imageGallery img {
+        width: 150px;
+        margin: 10px;
+        border-radius: 8px;
+        box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+      }
     </style>
-</head>
-<body>
-
+  </head>
+  <body>
     <h2>Upload Image to Google Drive</h2>
-    <input type="file" id="fileInput" accept="image/*">
-    <button onclick="uploadFile()">Upload</button>
-    <p id="status"></p>
+<input type="number" id="imageNumber" placeholder="Enter a number" />
+<input type="file" id="fileInput" />
+<button onclick="uploadFile()">Upload</button>
+<p id="status"></p>
+
+    <h2>Search Images</h2>
+    <input type="text" id="searchInput" placeholder="Search by name..." oninput="searchImages()">
+<button id="showAllButton" onclick="fetchImages()" style="display: none;">Show All</button>
+
+    
 
     <h2>Uploaded Images:</h2>
     <div id="imageGallery"></div>
-    <!-- <img src="https://images.pexels.com/photos/674010/pexels-photo-674010.jpeg?cs=srgb&dl=pexels-anjana-c-169994-674010.jpg&fm=jpg" alt="Uploaded Image" style="width: 150px; margin: 10px;"> -->
-    <!-- <img src="https://images.pexels.com/photos/674010/pexels-photo-674010.jpeg?cs=srgb&amp;dl=pexels-anjana-c-169994-674010.jpg&amp;fm=jpg" alt="Uploaded Image" style="width: 150px; margin: 10px;"> -->
-    <!-- <img src="https://lh3.googleusercontent.com/d/1YfV7PNV-97p_Wc-E9tr0yQl9w2wEIVwb" alt="Uploaded Image"> -->
-<img src="https://drive.google.com/uc?export=view&amp;id=12Ru2eP_tNNiq8yjznXCt6v3eD8wrxcgY" alt="Uploaded Image" style="width: 150px; margin: 10px;">
+  
     <script>
-        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwPSdE2PJi3xKDJVIUniXWsS0KGihRaBTBRObg-C4hYfpCUXinXq2uLG9C_x9p5qoZf/exec"; // 🔹 Replace with your Google Apps Script Web App URL
+      const WEB_APP_URL =
+        "https://script.google.com/macros/s/AKfycbz12p85E56Mwh_Sj1jjUyIN7nhg-mGg05o_khGLpyiigLRRWMZ7InCKONaA6vM6GXce/exec"; // 🔹 Replace with your Google Apps Script Web App URL
 
         async function uploadFile() {
     const fileInput = document.getElementById("fileInput").files[0];
+    const imageNumber = document.getElementById("imageNumber").value.trim();
     const statusElement = document.getElementById("status");
+
+    if (!imageNumber) {
+        alert("Please enter a number!");
+        return;
+    }
 
     if (!fileInput) {
         alert("Select a file first!");
         return;
     }
 
+    // 🔹 Restrict File Size to 1MB (1,048,576 bytes)
+    if (fileInput.size > 1048576) {
+        alert("File size must be less than 1MB!");
+        return;
+    }
+
     try {
         statusElement.textContent = "Uploading...";
 
-        // Convert file to Base64
         const reader = new FileReader();
         reader.readAsDataURL(fileInput);
-        
+
         reader.onloadend = async function () {
             const base64String = reader.result.split(",")[1];
 
-            // Send file data to Google Apps Script
             const response = await fetch(WEB_APP_URL, {
                 method: "POST",
                 headers: { "Content-Type": "application/x-www-form-urlencoded" },
                 body: new URLSearchParams({
                     image: base64String,
-                    fileName: fileInput.name,
-                    mimeType: fileInput.type
+                    imageNumber: imageNumber,
+                    mimeType: fileInput.type,
+                    fileName: `${imageNumber}`
                 })
             });
 
@@ -80,61 +95,85 @@
         statusElement.textContent = "Upload failed!";
     }
 }
-        async function fetchImages() {
-    const response = await fetch(WEB_APP_URL);
-    const data = await response.json();
-    
-    if (data.error) {
-        console.error("Error fetching images:", data.error);
-        return;
-    }
 
+
+        async function fetchImages() {
+    try {
+        const response = await fetch(WEB_APP_URL);
+        const data = await response.json();
+
+        if (!data.images || data.images.length === 0) {
+            console.error("No images found.");
+            return;
+        }
+
+        console.log("Fetched images:", data.images); // Debugging
+
+        displayImages(data.images);
+        document.getElementById("showAllButton").style.display = "none"; // Hide "Show All" initially
+    } catch (error) {
+        console.error("Error fetching images:", error);
+    }
+}
+
+function displayImages(imageData) {
     const imageContainer = document.getElementById("imageGallery");
     imageContainer.innerHTML = "";
 
-    data.images.forEach(url => {
-        let convertedUrl = convertDriveURL(url);
+    imageData.forEach(item => {
+        if (!item.url || !item.name) {
+            console.warn("Skipping invalid image data:", item);
+            return;
+        }
 
         const img = document.createElement("img");
-        img.src = convertedUrl;
-        img.alt = "Uploaded Image";
+        img.src = item.url;
+        img.alt = item.name;
         img.style.width = "150px";
         img.style.height = "150px";
         img.style.margin = "10px";
+
         imageContainer.appendChild(img);
     });
 }
 
-// Function to convert Google Drive URL to a direct displayable URL
-function convertDriveURL(driveURL) {
-    const driveUrlPattern = /https:\/\/drive\.google\.com\/uc\?export=view&id=(.*)/;
-    const match = driveURL.match(driveUrlPattern);
-    
-    if (match) {
-        return `https://lh3.googleusercontent.com/d/${match[1]}`;
+async function searchImages() {
+    const searchNumber = document.getElementById("searchInput").value.trim().toLowerCase();
+    if (!searchNumber) {
+        alert("Enter a number to search!");
+        return;
     }
 
-    return driveURL; // Return original URL if it doesn't match the expected format
+    try {
+        const response = await fetch(WEB_APP_URL);
+        const data = await response.json();
+
+        if (data.error) {
+            console.error("Error fetching images:", data.error);
+            return;
+        }
+
+        // ✅ Search by Number
+        const filteredImages = data.images.filter(item => 
+            item.name.startsWith(searchNumber)
+        );
+
+        if (filteredImages.length === 0) {
+            alert("No images found!");
+            return;
+        }
+
+        displayImages(filteredImages);
+        document.getElementById("showAllButton").style.display = "block"; // Show "Show All" button
+    } catch (error) {
+        console.error("Error fetching images:", error);
+    }
 }
 
-// Fetch images when the page loads
-document.addEventListener("DOMContentLoaded", fetchImages);
 
-        
-
-        window.onload = fetchImages;
+        fetchImages(); // Load images on page load
     </script>
-    <!-- <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            document.querySelectorAll("img").forEach((img) => {
-                const driveUrlPattern = /https:\/\/drive\.google\.com\/uc\?export=view&id=(.*)/;
-                const match = img.src.match(driveUrlPattern);
-                if (match) {
-                    img.src = `https://lh3.googleusercontent.com/d/${match[1]}`;
-                }
-            });
-        });
-    </script> -->
 
-</body>
+    </script>
+  </body>
 </html>
